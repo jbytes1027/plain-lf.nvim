@@ -43,17 +43,14 @@ end
 ---@param select_current_file boolean open ranger with the current buffer file selected.
 ---@return string
 local function build_lf_cmd(select_current_file)
-	local selected_file = ""
-	if vim.fn.expand("%") then
-		selected_file = "'" .. vim.fn.expand("%") .. "'"
+	lf_cmd = "lf"
+	lf_cmd = lf_cmd .. ' -selection-path="' .. SELECTED_FILEPATH .. '"'
+
+	if select_current_file and vim.fn.expand("%") then
+		lf_cmd = lf_cmd .. ' "' .. vim.fn.expand("%") .. '"'
 	end
 
-	local selectfile_flag = ""
-	if select_current_file then
-		selectfile_flag = selected_file
-	end
-
-	return string.format("lf -selection-path=%s %s", SELECTED_FILEPATH, selectfile_flag)
+	return lf_cmd
 end
 
 ---Open a window for ranger to run in.
