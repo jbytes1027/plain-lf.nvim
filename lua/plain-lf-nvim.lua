@@ -1,5 +1,4 @@
 local SELECTED_FILEPATH = vim.fn.stdpath("cache") .. "/lf_selected_files"
-local MODE_FILEPATH = vim.fn.stdpath("cache") .. "/lf_mode"
 
 local M = {}
 
@@ -75,23 +74,6 @@ end
 ---Clean up temporary files used to communicate between ranger and the plugin.
 local function clean_up()
 	vim.fn.delete(SELECTED_FILEPATH)
-	vim.fn.delete(MODE_FILEPATH)
-end
-
----@return function
-local function get_open_func()
-	local open = {
-		current_win = function(filepath)
-			vim.cmd.edit(filepath)
-		end,
-	}
-
-	if vim.fn.filereadable(MODE_FILEPATH) ~= 1 then
-		return open.current_win
-	end
-
-	local mode = vim.fn.readfile(MODE_FILEPATH)[1]
-	return open.current_win
 end
 
 ---Opens lf and open selected files on exit.
@@ -116,7 +98,7 @@ function M.open(select_current_file)
 			vim.api.nvim_win_close(0, true)
 			vim.api.nvim_set_current_win(last_win)
 			if vim.fn.filereadable(SELECTED_FILEPATH) == 1 then
-				open_files(SELECTED_FILEPATH, get_open_func())
+				open_files(SELECTED_FILEPATH, vim.cmd.edit)
 			end
 			clean_up()
 		end,
