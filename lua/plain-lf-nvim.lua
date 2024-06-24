@@ -1,23 +1,12 @@
-local SELECTED_FILEPATH = vim.fn.stdpath("cache") .. "/ranger_selected_files"
-local MODE_FILEPATH = vim.fn.stdpath("cache") .. "/ranger_mode"
+local SELECTED_FILEPATH = vim.fn.stdpath("cache") .. "/lf_selected_files"
+local MODE_FILEPATH = vim.fn.stdpath("cache") .. "/lf_mode"
 
 local M = {}
-
----@enum OPEN_MODE
-M.OPEN_MODE = {
-	vsplit = "vsplit",
-	split = "split",
-	tabedit = "tabedit",
-	rifle = "rifle",
-}
-
----@alias Keybinds table<string, OPEN_MODE>
 
 ---Configurable user options.
 ---@class Options
 ---@field enable_cmds boolean set commands
 ---@field replace_netrw boolean
----@field keybinds Keybinds
 ---@field ui UI
 
 ---@class UI
@@ -31,16 +20,10 @@ M.OPEN_MODE = {
 local opts = {
 	enable_cmds = false,
 	replace_netrw = false,
-	keybinds = {
-		["ov"] = M.OPEN_MODE.vsplit,
-		["oh"] = M.OPEN_MODE.split,
-		["ot"] = M.OPEN_MODE.tabedit,
-		["or"] = M.OPEN_MODE.rifle,
-	},
 	ui = {
-		border = "none",
-		height = 1,
-		width = 1,
+		border = "rounded",
+		height = 0.9,
+		width = 0.9,
 		x = 0.5,
 		y = 0.5,
 	},
@@ -56,64 +39,21 @@ local function open_files(filepath, open)
 	end
 end
 
----Build the ranger command flags for keybinds.
----@param cmds table<integer,string>
-local function create_ranger_cmd_flags(cmds)
-	local create_ranger_cmd_flag = function(cmd)
-		return string.format("--cmd='%s'", cmd)
-	end
-
-	local concat_with_space = function(target, subject)
-		return string.format("%s %s", target, subject)
-	end
-
-	local result = ""
-	for _, cmd in ipairs(cmds) do
-		if result == "" then
-			result = create_ranger_cmd_flag(cmd)
-		else
-			result = concat_with_space(result, create_ranger_cmd_flag(cmd))
-		end
-	end
-	return result
-end
-
----Creates the ranger mapping command.
----@param keybinding string
----@param mode string the mode the file(s) will be open in, e.g. vsplit, tab.
----@param mode_filepath string file where the selected mode will be output to.
----@return string ranger_mapping ranger mapping command.
-local function create_map_cmd(keybinding, mode, mode_filepath)
-	return string.format("map %s chain shell echo '%s' > %s; move right=1", keybinding, mode, mode_filepath)
-end
-
----Transforms the `keybinds` into a `table<integer, string>` containing the
----ranger mapping commands.
----@param keybinds Keybinds keybinds.
----@return table<integer, string>
-local function create_cmd_values(keybinds)
-	local result = {}
-	for keybind, mode in pairs(keybinds) do
-		table.insert(result, create_map_cmd(keybind, mode, MODE_FILEPATH))
-	end
-	return result
-end
-
 ---Builds the ranger command to be executed with open().
 ---@param select_current_file boolean open ranger with the current buffer file selected.
 ---@return string
-local function build_ranger_cmd(select_current_file)
+local function build_lf_cmd(select_current_file)
 	local selected_file = ""
 	if vim.fn.expand("%") then
 		selected_file = "'" .. vim.fn.expand("%") .. "'"
 	end
-	local selectfile_flag = select_current_file and " --selectfile=" .. selected_file or ""
-	return string.format(
-		"ranger --choosefiles=%s %s %s",
-		SELECTED_FILEPATH,
-		selectfile_flag,
-		create_ranger_cmd_flags(create_cmd_values(opts.keybinds))
-	)
+
+	local selectfile_flag = ""
+	if select_current_file then
+		selectfile_flag = selected_file
+	end
+
+	return string.format("lf -selection-path=%s %s", SELECTED_FILEPATH, selectfile_flag)
 end
 
 ---Open a window for ranger to run in.
@@ -147,18 +87,6 @@ local function get_open_func()
 		current_win = function(filepath)
 			vim.cmd.edit(filepath)
 		end,
-		vsplit = function(filepath)
-			vim.cmd.vsplit(filepath)
-		end,
-		split = function(filepath)
-			vim.cmd.split(filepath)
-		end,
-		tabedit = function(filepath)
-			vim.cmd.tabedit(filepath)
-		end,
-		rifle = function(filepath)
-			vim.fn.system({ "rifle", filepath })
-		end,
 	}
 
 	if vim.fn.filereadable(MODE_FILEPATH) ~= 1 then
@@ -166,26 +94,14 @@ local function get_open_func()
 	end
 
 	local mode = vim.fn.readfile(MODE_FILEPATH)[1]
-	if mode == M.OPEN_MODE.vsplit then
-		return open.vsplit
-	elseif mode == M.OPEN_MODE.split then
-		return open.split
-	elseif mode == M.OPEN_MODE.tabedit then
-		return open.tabedit
-	elseif mode == M.OPEN_MODE.rifle then
-		return open.rifle
-	else
-		return open.current_win
-	end
+	return open.current_win
 end
 
----Opens ranger and open selected files on exit.
----@param select_current_file boolean|nil open ranger and select the current file. Defaults to true.
+---Opens lf and open selected files on exit.
+---@param select_current_file boolean|nil open lf and select the current file. Defaults to true.
 function M.open(select_current_file)
-	if vim.fn.executable("ranger") ~= 1 then
-		vim.api.nvim_err_write(
-			"ranger executable not found, please check that ranger is installed and is in your path\n"
-		)
+	if vim.fn.executable("lf") ~= 1 then
+		vim.api.nvim_err_write("lf executable not found, please check that lf is installed and is in your path\n")
 		return
 	end
 
@@ -195,7 +111,7 @@ function M.open(select_current_file)
 
 	clean_up()
 
-	local cmd = build_ranger_cmd(select_current_file)
+	local cmd = build_lf_cmd(select_current_file)
 	local last_win = vim.api.nvim_get_current_win()
 	open_win()
 	vim.fn.termopen(cmd, {
@@ -236,7 +152,7 @@ function M.setup(user_opts)
 		replace_netrw()
 	end
 	if opts.enable_cmds then
-		vim.cmd('command! Ranger lua require("ranger-nvim").open(true)')
+		vim.cmd('command! Lf lua require("plain-lf-nvim").open(true)')
 	end
 end
 
