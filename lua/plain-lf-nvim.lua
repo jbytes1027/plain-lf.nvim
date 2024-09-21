@@ -52,14 +52,13 @@ local function build_lf_cmd(select_current_file)
 	return lf_cmd
 end
 
----Open a window for ranger to run in.
-local function open_win()
-	local buf = vim.api.nvim_create_buf(false, true)
+local function get_win_options()
 	local win_height = math.ceil(vim.o.lines * opts.ui.height)
 	local win_width = math.ceil(vim.o.columns * opts.ui.width)
 	local row = math.ceil((vim.o.lines - win_height) * opts.ui.y - 1)
 	local col = math.ceil((vim.o.columns - win_width) * opts.ui.x)
-	local win = vim.api.nvim_open_win(buf, true, {
+
+	return {
 		relative = "editor",
 		width = win_width,
 		height = win_height,
@@ -67,8 +66,20 @@ local function open_win()
 		row = row,
 		col = col,
 		style = "minimal",
-	})
+	}
+end
+
+---Open a window for ranger to run in.
+local function open_win()
+	local buf = vim.api.nvim_create_buf(false, true)
+	local win = vim.api.nvim_open_win(buf, true, get_win_options())
 	vim.api.nvim_win_set_option(win, "winhl", "NormalFloat:Normal")
+	vim.api.nvim_create_autocmd("VimResized", {
+		buffer = buf,
+		callback = function()
+			vim.api.nvim_win_set_config(win, get_win_options())
+		end,
+	})
 end
 
 ---Clean up temporary files used to communicate between ranger and the plugin.
