@@ -53,10 +53,32 @@ local function build_lf_cmd(select_current_file)
 end
 
 local function get_win_options()
-	local win_height = math.ceil(vim.o.lines * opts.ui.height)
-	local win_width = math.ceil(vim.o.columns * opts.ui.width)
-	local row = math.ceil((vim.o.lines - win_height) * opts.ui.y - 1)
-	local col = math.ceil((vim.o.columns - win_width) * opts.ui.x)
+	local from_height = vim.o.lines
+	local from_width = vim.o.columns
+
+	from_height = from_height - vim.o.cmdheight
+	if vim.o.laststatus ~= 0 then
+		from_height = from_height - 1
+	end
+
+	local popup_height = math.floor(from_height * opts.ui.height)
+	local popup_width = math.floor(from_width * opts.ui.width)
+
+	padding_y = from_height - popup_height
+	padding_x = from_width - popup_width
+
+	local row = math.floor(padding_y * opts.ui.y)
+	local col = math.floor(padding_x * opts.ui.x)
+
+    local win_width
+    local win_height
+	if opts.ui.border == "none" then
+        win_height = popup_height
+        win_width = popup_width
+    elseif opts.ui.border ~= "none" then
+		win_height = popup_height - 2
+		win_width = popup_width - 2
+	end
 
 	return {
 		relative = "editor",
