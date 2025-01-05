@@ -66,6 +66,7 @@ local function get_win_options()
 		row = row,
 		col = col,
 		style = "minimal",
+		zindex = 1000,
 	}
 end
 
